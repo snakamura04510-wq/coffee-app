@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [16.x]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Check for console.log or debugger statements
+        run: |
+          if grep -r -n -E 'console\.log|debugger' --exclude-dir=node_modules .; then
+            echo "Error: console.log or debugger statements found."
+            exit 1
+          else
+            echo "No console.log or debugger statements found."
+          fi
+
+      - name: Check formatting
+        run: npx prettier --check .
+
+      - name: Scan for hardcoded secrets
+        run: |
+        if grep -r -n -i -E 'SECRET|PASSWORD|API_KEY|TOKEN' --exclude-dir=node_modules --exclude-dir=build --exclude-dir=.git --exclude=package-lock.json --exclude=ci.yml . | grep -v "CODECOV_TOKEN"; then
+            echo "Error: Potential hardcoded secrets found in the files above."
+            exit 1
+          else
+            echo "No secrets found."
+          fi
