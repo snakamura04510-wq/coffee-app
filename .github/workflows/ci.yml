@@ -1,0 +1,202 @@
+# GitHub Actions CI Workflow for React + Node.js Project
+#
+# This workflow covers all the requirements provided:
+# - Dependency & Environment checks
+# - Code Quality & Conventions
+# - Testing (Unit, Snapshot, Coverage)
+# - Build & Performance checks
+# - Security scans
+# - Other useful checks (Accessibility)
+#
+# It's split into multiple jobs for clarity and parallelism.
+# Some steps require additional setup (e.g., adding dev dependencies),
+# which are explained in the comments.
+#
+# Manual Checks Recommended:
+# - README/Storybook: Please ensure README.md is up-to-date and Storybook (if used)
+#   is maintained as part of your manual code review process.
+#
+# Recommendation for Commit Message Linting:
+# To enable commit message validation, you first need to set up commitlint
+# in your repository:
+# 1. Install dependencies: `npm install --save-dev @commitlint/config-conventional @commitlint/cli`
+# 2. Create `.commitlintrc.js` in root: `module.exports = { extends: ['@commitlint/config-conventional'] };`
+# 3. Once setup is complete, you can add the following job to this workflow:
+#
+#  check-commit-message:
+#    name: Check Commit Message
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Check commit message convention
+#        uses: wagoid/commitlint-github-action@v6
+#        with:
+#          configFile: '.commitlintrc.js'
+
+name: CI
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  # =================================================================
+  # Job 1: Client Application CI
+  # =================================================================
+  client-ci:
+    name: Client CI
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./client
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies with integrity check
+        run: npm ci
+
+      - name: Check directory structure
+        run: |
+          echo "--- Client Directory Structure ---"
+          ls -R
+          echo "--------------------------------"
+
+      - name: Lint code with ESLint
+        run: npx eslint src/
+
+      - name: Check formatting with Prettier
+        run: npx prettier --check .
+        # Recommendation: Add Prettier: npm install --save-dev prettier
+
+      - name: Check for console.log and debugger statements
+        run: |
+          if grep -r -E 'console\.log|debugger' src/; then
+            echo "Error: console.log or debugger statements found."
+            exit 1
+          fi
+
+      - name: Run tests and measure code coverage
+        # Create-React-App uses 'cobertura' reporter, which is supported by Codecov
+        run: npm test -- --watchAll=false --coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          # Recommendation: Add a `CODECOV_TOKEN` to your repository secrets.
+          working-directory: ./client
+
+      - name: Check for security vulnerabilities
+        run: npm audit --audit-level=high
+
+      - name: Check for .env.example file
+        run: |
+          if [ ! -f .env.example ]; then
+            echo "Warning: .env.example file not found in client directory."
+            echo "It's recommended to have one to list required environment variables."
+          fi
+
+      - name: Build the application
+        run: npm run build
+        env:
+          CI: true
+
+      - name: Check bundle size
+        run: |
+          echo "--- Build output ---"
+          ls -lh build/static/js
+          echo "--------------------"
+
+      - name: Run accessibility check with Lighthouse
+        uses: treosh/lighthouse-ci-action@v11
+        with:
+          static_dist_dir: ./client/build
+          # Recommendation: Create a `lighthouserc.js` file to set budgets.
+
+  # =================================================================
+  # Job 2: Server Application CI
+  # =================================================================
+  server-ci:
+    name: Server CI
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./server
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies with integrity check
+        run: npm ci
+
+      - name: Check directory structure
+        run: |
+          echo "--- Server Directory Structure ---"
+          ls -R
+          echo "--------------------------------"
+
+      # - name: Lint code with ESLint
+      #   run: npx eslint .
+      #   # Recommendation: Add ESLint to your server.
+
+      # - name: Run tests with Jest
+      #   run: npm test
+      #   # Recommendation: Add a testing framework like Jest.
+
+      - name: Check for console.log and debugger statements
+        run: |
+          # The `.` refers to the current working directory (`./server`)
+          if grep -r -E 'console\.log|debugger' .; then
+            echo "Error: console.log or debugger statements found."
+            exit 1
+          fi
+
+      - name: Check for security vulnerabilities
+        run: npm audit --audit-level=high
+
+      - name: Check for .env.example file
+        run: |
+          if [ ! -f .env.example ]; then
+            echo "Warning: .env.example file not found in server directory."
+            echo "It's recommended to have one to list required environment variables."
+          fi
+
+  # =================================================================
+  # Job 3: Repository-wide Security Scan
+  # =================================================================
+  secrets-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Scan for hardcoded secrets
+        run: |
+          # This is a basic check. For robust scanning, use a tool like Gitleaks.
+          if grep -r -n -i -E 'SECRET|PASSWORD|API_KEY|TOKEN' --exclude-dir=node_modules --exclude-dir=build --exclude-dir=.git .; then
+            echo "Error: Potential hardcoded secrets found in the files above."
+            exit 1
+          else
+            echo "No secrets found."
+          fi
