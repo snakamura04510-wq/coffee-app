@@ -6,7 +6,14 @@ const products = [
   { id: 3, bean: "ケニアAA" },
 ];
 
-const roasts = ["浅煎り", "中煎り", "中深煎り", "深煎り", "相談希望", "おすすめ"];
+const roasts = [
+  "浅煎り",
+  "中煎り",
+  "中深煎り",
+  "深煎り",
+  "相談希望",
+  "おすすめ",
+];
 
 function OrderForm() {
   const [name, setName] = useState("");
@@ -17,13 +24,15 @@ function OrderForm() {
   const [message, setMessage] = useState("");
 
   const addToCart = () => {
-    setCart(prev => {
-      const exist = prev.find(item => item.bean === selectedBean && item.roast === selectedRoast);
+    setCart((prev) => {
+      const exist = prev.find(
+        (item) => item.bean === selectedBean && item.roast === selectedRoast,
+      );
       if (exist) {
-        return prev.map(item =>
+        return prev.map((item) =>
           item.bean === selectedBean && item.roast === selectedRoast
             ? { ...item, qty: item.qty + qty }
-            : item
+            : item,
         );
       } else {
         return [...prev, { bean: selectedBean, roast: selectedRoast, qty }];
@@ -33,10 +42,13 @@ function OrderForm() {
 
   const changeQty = (index, newQty) => {
     if (newQty < 1) return;
-    setCart(prev => prev.map((item, i) => (i === index ? { ...item, qty: newQty } : item)));
+    setCart((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, qty: newQty } : item)),
+    );
   };
 
-  const removeItem = (index) => setCart(prev => prev.filter((_, i) => i !== index));
+  const removeItem = (index) =>
+    setCart((prev) => prev.filter((_, i) => i !== index));
 
   const sendOrder = async () => {
     if (!name) {
@@ -70,26 +82,45 @@ function OrderForm() {
 
       <label>
         お名前：
-        <input type="text" value={name} onChange={e => setName(e.target.value)} />
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
       </label>
 
       <label>
         豆：
-        <select value={selectedBean} onChange={e => setSelectedBean(e.target.value)}>
-          {products.map(p => <option key={p.id}>{p.bean}</option>)}
+        <select
+          value={selectedBean}
+          onChange={(e) => setSelectedBean(e.target.value)}
+        >
+          {products.map((p) => (
+            <option key={p.id}>{p.bean}</option>
+          ))}
         </select>
       </label>
 
       <label>
         焙煎：
-        <select value={selectedRoast} onChange={e => setSelectedRoast(e.target.value)}>
-          {roasts.map(r => <option key={r}>{r}</option>)}
+        <select
+          value={selectedRoast}
+          onChange={(e) => setSelectedRoast(e.target.value)}
+        >
+          {roasts.map((r) => (
+            <option key={r}>{r}</option>
+          ))}
         </select>
       </label>
 
       <label>
         数量：
-        <input type="number" value={qty} min={1} onChange={e => setQty(Number(e.target.value))} />
+        <input
+          type="number"
+          value={qty}
+          min={1}
+          onChange={(e) => setQty(Number(e.target.value))}
+        />
       </label>
 
       <button onClick={addToCart}>カートに追加</button>
@@ -100,7 +131,13 @@ function OrderForm() {
         {cart.map((item, i) => (
           <li key={i}>
             {item.bean} - {item.roast} - {item.qty}個
-            <input type="number" value={item.qty} min={1} onChange={e => changeQty(i, Number(e.target.value))} style={{ width: "50px", marginLeft: "10px" }} />
+            <input
+              type="number"
+              value={item.qty}
+              min={1}
+              onChange={(e) => changeQty(i, Number(e.target.value))}
+              style={{ width: "50px", marginLeft: "10px" }}
+            />
             <button onClick={() => removeItem(i)}>削除</button>
           </li>
         ))}
