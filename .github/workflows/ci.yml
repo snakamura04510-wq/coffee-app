@@ -6,7 +6,7 @@
 # - Testing (Unit, Snapshot, Coverage)
 # - Build & Performance checks
 # - Security scans
-# - Other useful checks (Commit message, Accessibility)
+# - Other useful checks (Accessibility)
 #
 # It's split into multiple jobs for clarity and parallelism.
 # Some steps require additional setup (e.g., adding dev dependencies),
@@ -15,6 +15,22 @@
 # Manual Checks Recommended:
 # - README/Storybook: Please ensure README.md is up-to-date and Storybook (if used)
 #   is maintained as part of your manual code review process.
+#
+# Recommendation for Commit Message Linting:
+# To enable commit message validation, you first need to set up commitlint
+# in your repository:
+# 1. Install dependencies: `npm install --save-dev @commitlint/config-conventional @commitlint/cli`
+# 2. Create `.commitlintrc.js` in root: `module.exports = { extends: ['@commitlint/config-conventional'] };`
+# 3. Once setup is complete, you can add the following job to this workflow:
+#
+#  check-commit-message:
+#    name: Check Commit Message
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Check commit message convention
+#        uses: wagoid/commitlint-github-action@v6
+#        with:
+#          configFile: '.commitlintrc.js'
 
 name: CI
 
@@ -26,28 +42,11 @@ on:
 
 jobs:
   # =================================================================
-  # Job 1: Check Commit Message (Conventional Commits)
-  # =================================================================
-  check-commit-message:
-    name: Check Commit Message
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check commit message convention
-        uses: wagoid/commitlint-github-action@v6
-        with:
-          configFile: '.commitlintrc.js'
-          # Recommendation: Setup Conventional Commits
-          # 1. Install dependencies: npm install --save-dev @commitlint/config-conventional @commitlint/cli
-          # 2. Create `.commitlintrc.js` in root: module.exports = { extends: ['@commitlint/config-conventional'] };
-          # This check will fail until the above setup is complete.
-
-  # =================================================================
-  # Job 2: Client Application CI
+  # Job 1: Client Application CI
   # =================================================================
   client-ci:
     name: Client CI
     runs-on: ubuntu-latest
-    needs: check-commit-message
 
     defaults:
       run:
@@ -96,8 +95,6 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           # Recommendation: Add a `CODECOV_TOKEN` to your repository secrets.
-          # This action will upload the coverage report and provide feedback
-          # on coverage changes in pull requests.
           working-directory: ./client
 
       - name: Check for security vulnerabilities
@@ -128,12 +125,11 @@ jobs:
           # Recommendation: Create a `lighthouserc.js` file to set budgets.
 
   # =================================================================
-  # Job 3: Server Application CI
+  # Job 2: Server Application CI
   # =================================================================
   server-ci:
     name: Server CI
     runs-on: ubuntu-latest
-    needs: check-commit-message
 
     defaults:
       run:
@@ -186,12 +182,11 @@ jobs:
           fi
 
   # =================================================================
-  # Job 4: Repository-wide Security Scan
+  # Job 3: Repository-wide Security Scan
   # =================================================================
   secrets-scan:
     name: Security Scan
     runs-on: ubuntu-latest
-    needs: check-commit-message
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
